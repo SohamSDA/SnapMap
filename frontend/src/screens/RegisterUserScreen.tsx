@@ -9,9 +9,17 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Modal,
 } from "react-native";
 import { useUser, useAuth } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { ScreenProps } from "../types";
+
+// Enum values - Gender from backend model
+const GENDER_OPTIONS = ["male", "female", "others"];
+
+// Year options - frontend enum
+const YEAR_OPTIONS = ["1st", "2nd", "3rd", "4th", "5th", "Graduate", "Other"];
 
 // For Android emulator, use 10.0.2.2 instead of localhost
 // For iOS simulator, localhost works fine
@@ -19,7 +27,7 @@ import { ScreenProps } from "../types";
 const API_BASE_URL = __DEV__
   ? Platform.OS === "android"
     ? "http://10.0.2.2:5000"
-    : "http://localhost:5000"
+    : "http://192.168.29.11:5000"
   : "https://your-production-url.com";
 
 const RegisterUserScreen = ({ navigation }: ScreenProps<"RegisterUserScreen">) => {
@@ -27,7 +35,7 @@ const RegisterUserScreen = ({ navigation }: ScreenProps<"RegisterUserScreen">) =
   const { getToken } = useAuth();
   
   const [formData, setFormData] = useState({
-    name: user?.firstName || user?.fullName || "",
+    name: user?.fullName || user?.firstName || "",
     email: user?.primaryEmailAddress?.emailAddress || "",
     collegeName: "",
     phoneNumber: user?.primaryPhoneNumber?.phoneNumber || "",
@@ -37,6 +45,8 @@ const RegisterUserScreen = ({ navigation }: ScreenProps<"RegisterUserScreen">) =
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [genderDropdownVisible, setGenderDropdownVisible] = useState(false);
+  const [yearDropdownVisible, setYearDropdownVisible] = useState(false);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -70,13 +80,44 @@ const RegisterUserScreen = ({ navigation }: ScreenProps<"RegisterUserScreen">) =
     setIsSubmitting(true);
 
     try {
-      const token = await getToken();
-      
-      if (!token) {
-        Alert.alert("Error", "Authentication token not available");
+      // Check if user is authenticated
+      if (!user) {
+        Alert.alert("Error", "User not authenticated. Please sign in again.");
         setIsSubmitting(false);
         return;
       }
+
+      // Get the JWT token from Clerk
+      // Try without template first, then with template if needed
+      let token = await getToken();
+      
+      // If token is null, try with explicit options
+      if (!token) {
+        try {
+          token = await getToken({ template: "default" });
+        } catch (templateError) {
+          console.log("Template token failed, trying without template");
+        }
+      }
+      
+      console.log("Token retrieved:", token ? "Token exists" : "Token is null");
+      console.log("Token length:", token?.length || 0);
+      
+      if (!token) {
+        Alert.alert("Error", "Authentication token not available. Please sign in again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log("Making API request to:", `${API_BASE_URL}/api/v1/auth/signup`);
+      console.log("Request payload:", {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        collegeName: formData.collegeName.trim(),
+        phoneNumber: formData.phoneNumber.trim() || undefined,
+        year: formData.year.trim() || undefined,
+        gender: formData.gender.trim() || undefined,
+      });
 
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
         method: "POST",
@@ -94,23 +135,31 @@ const RegisterUserScreen = ({ navigation }: ScreenProps<"RegisterUserScreen">) =
         }),
       });
 
-      const data = await response.json();
+      console.log("Response status:", response.status);
+      
+      let data;
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error("Failed to parse response:", parseError);
+        data = { message: "Failed to parse server response" };
+      }
+      
+      console.log("Response data:", data);
 
       if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
+        const errorMessage = data.message || `Registration failed with status ${response.status}`;
+        console.error("API Error:", errorMessage);
+        throw new Error(errorMessage);
       }
 
-      // Update Clerk metadata to mark user as registered
+      // Reload user to get updated metadata from backend
       if (user) {
         try {
-          await user.update({
-            unsafeMetadata: {
-              isRegistered: true,
-            },
-          });
           await user.reload();
         } catch (err) {
-          console.error("Failed to update Clerk metadata:", err);
+          console.error("Failed to reload user:", err);
           // Continue anyway since backend registration succeeded
         }
       }
@@ -185,31 +234,6 @@ const RegisterUserScreen = ({ navigation }: ScreenProps<"RegisterUserScreen">) =
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Gender</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.gender}
-            onChangeText={(value) => updateField("gender", value)}
-            placeholder="Enter your gender"
-            placeholderTextColor="#999"
-            editable={!isSubmitting}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.phoneNumber}
-            onChangeText={(value) => updateField("phoneNumber", value)}
-            placeholder="Enter your phone number"
-            placeholderTextColor="#999"
-            keyboardType="phone-pad"
-            editable={!isSubmitting}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
           <Text style={styles.label}>
             College Name <Text style={styles.required}>*</Text>
           </Text>
@@ -227,15 +251,124 @@ const RegisterUserScreen = ({ navigation }: ScreenProps<"RegisterUserScreen">) =
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Year</Text>
+          <Text style={styles.label}>Gender</Text>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => !isSubmitting && setGenderDropdownVisible(true)}
+            disabled={isSubmitting}
+          >
+            <Text style={[styles.dropdownText, !formData.gender && styles.dropdownPlaceholder]}>
+              {formData.gender || "Select your gender"}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#666" />
+          </TouchableOpacity>
+          <Modal
+            visible={genderDropdownVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setGenderDropdownVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setGenderDropdownVisible(false)}
+            >
+              <View style={styles.dropdownModal}>
+                {GENDER_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.dropdownOption,
+                      formData.gender === option && styles.dropdownOptionSelected,
+                    ]}
+                    onPress={() => {
+                      updateField("gender", option);
+                      setGenderDropdownVisible(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownOptionText,
+                        formData.gender === option && styles.dropdownOptionTextSelected,
+                      ]}
+                    >
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Text>
+                    {formData.gender === option && (
+                      <Ionicons name="checkmark" size={20} color="#FF4444" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Phone Number</Text>
           <TextInput
             style={styles.input}
-            value={formData.year}
-            onChangeText={(value) => updateField("year", value)}
-            placeholder="e.g., 1st, 2nd, 3rd, 4th"
+            value={formData.phoneNumber}
+            onChangeText={(value) => updateField("phoneNumber", value)}
+            placeholder="Enter your phone number"
             placeholderTextColor="#999"
+            keyboardType="phone-pad"
             editable={!isSubmitting}
           />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Year</Text>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => !isSubmitting && setYearDropdownVisible(true)}
+            disabled={isSubmitting}
+          >
+            <Text style={[styles.dropdownText, !formData.year && styles.dropdownPlaceholder]}>
+              {formData.year || "Select your year"}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#666" />
+          </TouchableOpacity>
+          <Modal
+            visible={yearDropdownVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setYearDropdownVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setYearDropdownVisible(false)}
+            >
+              <View style={styles.dropdownModal}>
+                {YEAR_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.dropdownOption,
+                      formData.year === option && styles.dropdownOptionSelected,
+                    ]}
+                    onPress={() => {
+                      updateField("year", option);
+                      setYearDropdownVisible(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownOptionText,
+                        formData.year === option && styles.dropdownOptionTextSelected,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                    {formData.year === option && (
+                      <Ionicons name="checkmark" size={20} color="#FF4444" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
         </View>
 
         <TouchableOpacity
@@ -339,5 +472,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     letterSpacing: 0.5,
+  },
+  dropdown: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  dropdownPlaceholder: {
+    color: "#999",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dropdownModal: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    width: "80%",
+    maxWidth: 400,
+    maxHeight: "60%",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  dropdownOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dropdownOptionSelected: {
+    backgroundColor: "#FFF5F5",
+  },
+  dropdownOptionText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  dropdownOptionTextSelected: {
+    color: "#FF4444",
+    fontWeight: "600",
   },
 });
