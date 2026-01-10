@@ -93,7 +93,7 @@ SnapMap/                         → Project root
 │       
 ├── frontend/                     → Mobile frontend
 │   │   .gitignore                
-│   │   app.json                  → Expo app config
+│   │   app.config.ts             → Expo app config
 │   │   babel.config.js           
 │   │   index.js                  → App entry point
 │   │   package-lock.json         
