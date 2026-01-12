@@ -10,7 +10,7 @@ const EventGalleryStyle = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 100,
     paddingTop: 12,
   },
   headerRow: {

@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { ScreenProps } from "../types";
 import EventGalleryStyle from "../styles/EventGalleryStyle";
+import BottomNavigation from "../navigation/BottomNavigation";
 
 const styles = EventGalleryStyle;
 
@@ -226,6 +227,9 @@ const EventGalleryScreen = ({
           </View>
         ))}
       </ScrollView>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </SafeAreaView>
   );
 };
