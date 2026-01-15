@@ -76,7 +76,7 @@ SNAP-MAP allows students to instantly capture photos and share them on a live ca
 
 ---
 
-# 🔌 API Endpoints
+# API Endpoints
 
 All endpoints are prefixed with `/api/v1`
 
@@ -171,31 +171,9 @@ All endpoints are prefixed with `/api/v1`
 - **Auth Required:** No
 - **Response:** Array of all photo objects with URLs and metadata
 
----
 
-# API Endpoints
+## Auth routes need `Authorization: Bearer <clerk_token>` header. Max image size is 10MB.
 
-All routes are under `/api/v1`
-
-**Health**
-- `GET /health` - just returns `{ status: "ok" }`
-
-**Auth**
-- `POST /auth/login` - login
-- `POST /auth/signup` - register (needs auth header)
-- `POST /auth/profile-update` - update profile pic etc, send profileImg in form-data
-- `GET /auth/get-profile` - fetch logged in user's profile
-
-**Photos**
-- `GET /photos/ping` - returns `{ pong: true }`, good for testing
-- `GET /photos/all-photos` - get all photos from db
-- `POST /photos/upload-photo` - upload single photo (field: `photo`)
-- `POST /photos/upload-photos` - batch upload, max 10 (field: `photos[]`)
-- `POST /photos/test-upload` - same as upload but no auth, for testing
-
-Auth routes need `Authorization: Bearer <clerk_token>` header. Max image size is 10MB.
-
----
 
 # 📂 Project Structure
 
