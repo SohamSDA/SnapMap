@@ -96,6 +96,31 @@ CLERK_SECRET_KEY=your_secret_key
 
 ⚠️ Do not commit this file.
 
+### Kafka Setup (for metadata events)
+
+SnapMap uses Kafka for metadata events (not image payloads). Add these to `backend/.env`:
+
+```
+# Comma-separated broker list (local or cloud)
+KAFKA_BROKERS=localhost:9092
+# Identifier for this app
+KAFKA_CLIENT_ID=snapmap-backend
+# Optional SASL auth (leave empty if not used)
+KAFKA_USERNAME=
+KAFKA_PASSWORD=
+```
+
+Where to get these values:
+- Local broker: set `KAFKA_BROKERS=localhost:9092` (or the host:port you expose when you start Kafka).
+- Hosted providers (Confluent, Aiven, Upstash, etc.): use the provider’s bootstrap servers for `KAFKA_BROKERS` (comma-separated if multiple). If the provider gives an API key/secret or service account credentials, map them to `KAFKA_USERNAME` and `KAFKA_PASSWORD`. Leave them empty if your cluster allows unauthenticated access.
+
+Create the topics on your Kafka cluster:
+- `photo-uploads`
+- `event-updates`
+- `photo-dlq` (optional dead-letter queue)
+
+If you use a hosted Kafka service, set `KAFKA_BROKERS` to the provider’s bootstrap hosts and fill `KAFKA_USERNAME`/`KAFKA_PASSWORD` only if SASL is required.
+
 ### Clerk Authentication Setup
 
 SnapMap uses Clerk for authentication.
