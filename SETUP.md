@@ -119,7 +119,22 @@ Create the topics on your Kafka cluster:
 - `event-updates`
 - `photo-dlq` (optional dead-letter queue)
 
-If you use a hosted Kafka service, set `KAFKA_BROKERS` to the provider’s bootstrap hosts and fill `KAFKA_USERNAME`/`KAFKA_PASSWORD` only if SASL is required.
+How to install/run Kafka locally (Docker, KRaft single node):
+- Prereq: Install Docker Desktop if you don’t have Docker (https://www.docker.com/products/docker-desktop). Verify with `docker --version`.
+- Pull image: `docker pull apache/kafka:4.2.0-rc1`
+- Run (PowerShell one-liner):
+```
+docker run -d --name snapmap-kafka -p 9092:9092 -p 9093:9093 -e KAFKA_NODE_ID=1 -e KAFKA_PROCESS_ROLES=broker,controller -e KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 -e KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0 -e KAFKA_LOG_DIRS=/tmp/kraft-combined-logs apache/kafka:4.2.0-rc1
+```
+- Then create the topics (against localhost:9092):
+```
+docker exec -it snapmap-kafka /opt/kafka/bin/kafka-topics.sh --create --topic photo-uploads --bootstrap-server localhost:9092
+docker exec -it snapmap-kafka /opt/kafka/bin/kafka-topics.sh --create --topic event-updates --bootstrap-server localhost:9092
+docker exec -it snapmap-kafka /opt/kafka/bin/kafka-topics.sh --create --topic photo-dlq --bootstrap-server localhost:9092
+```
+- Set `KAFKA_BROKERS=localhost:9092` in `backend/.env`.
+
+If you use a hosted Kafka service, set `KAFKA_BROKERS` to the provider's bootstrap hosts and fill `KAFKA_USERNAME`/`KAFKA_PASSWORD` only if SASL is required.
 
 ### Clerk Authentication Setup
 
