@@ -1,7 +1,14 @@
 import express from "express";
 import multer from "multer";
 import authMiddleware from "../middleware/authentication.js";
-import { uploadPhoto, uploadPhotos, getAllPhotos, getNearbyPhotos, testUploadPhoto, getUserPhotos } from "../controllers/photoController.js";
+import {
+  uploadPhoto,
+  uploadPhotos,
+  getAllPhotos,
+  getNearbyPhotos,
+  testUploadPhoto,
+  getUserPhotos,
+} from "../controllers/photoController.js";
 
 
 const router = express.Router();
@@ -43,6 +50,7 @@ router.post(
 
 router.get("/all-photos", getAllPhotos);
 router.get("/nearby", getNearbyPhotos);
+router.get("/get-user-photos", authMiddleware, getUserPhotos);
 
 router.get("/get-user-photos/:clerkId", getUserPhotos);
 
