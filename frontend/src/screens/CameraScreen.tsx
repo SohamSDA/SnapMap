@@ -74,12 +74,24 @@ export default function CameraScreen({
   };
 
   const handletheCapture = async () => {
-    if (!cameraRef.current || !isCameraOk) {
-      return;
-    }
+    if (!cameraRef.current || !isCameraOk) return;
 
-    const photo = await cameraRef.current.takePictureAsync();
-    let location = null;
+    // fast capture
+    const photo = await cameraRef.current.takePictureAsync({
+      quality: 0.85,
+      skipProcessing: true,
+    });
+
+    // navigate instantly
+    navigation.navigate("UploadConfirmationScreen", {
+      photo,
+      location: null,
+    });
+
+    // fetch location in background
+    fetchLocationInBackground(photo);
+  };
+  const fetchLocationInBackground = async (photo: any) => {
     const permissionStatus = await ensureLocationPermission();
 
     if (permissionStatus === "granted") {
@@ -89,19 +101,22 @@ export default function CameraScreen({
           "Location off",
           "Enable location services to add location data."
         );
-      } else {
-        try {
-          location = await Location.getCurrentPositionAsync({});
-        } catch (error) {
-          Alert.alert("Location error", "Unable to fetch your location.");
-        }
+        return;
+      }
+
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        navigation.navigate("UploadConfirmationScreen", {
+          photo,
+          location,
+        });
+      } catch (err) {
+        Alert.alert("Location error", "Unable to fetch your location.");
       }
     }
-
-    navigation.navigate("UploadConfirmationScreen", {
-      photo,
-      location,
-    });
   };
 
   const handleGalleryPick = async () => {
