@@ -1,0 +1,9 @@
+Today isn’t really a goodbye — it’s a quiet full stop at the end of a meaningful chapter.
+This open-source journey gave me more than just commits and pull requests. It gave me perspective, confidence, late-night debugging lessons, and the feeling of being part of something bigger than myself.
+
+Every review comment, every merged PR, every small improvement taught me how collaboration truly works — not as code, but as people building together. I’m grateful for the patience, the guidance, and the shared curiosity that made this experience so impactful.
+
+I’m walking away with stronger skills, sharper thinking, and a deeper respect for the open-source community. This may be the end of this contribution, but it’s definitely not the end of the learning.
+
+Thank you ABDUL for the opportunity, the trust, and the chance to grow.
+Until our paths cross again — happy hacking, and keep building great things. 💙
