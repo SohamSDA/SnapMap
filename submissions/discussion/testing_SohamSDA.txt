@@ -1,0 +1,44 @@
+SnapMap Kafka Event Clustering Test Report
+Author: SohamSDA
+Date: 2026-01-31
+
+Environment
+- API base: http://localhost:5000
+- Mongo: mongodb://localhost:27017/snapmap (local)
+- Kafka: localhost:9092 (topics: photo-uploads, event-updates, photo-dlq)
+- Clustering config used during tests: distance 75m, time window +/-15m, min photos 3
+
+
+Scenario 1 (camera, same account/location)
+- Account: user_38SmxMZ2Q5UaANuyevNvyASDAfc
+- Location: ~23.20630, 72.58762
+- Flow: 4 single camera uploads with 1–2 min gaps (requirement 6–8; event formed after 4)
+- EventId: 697dd933d3bd58fc7bc129de
+- Photos:
+  • 697dd8e15b911d060343fa9f → https://snapmap.blob.core.windows.net/snapmap/user_38SmxMZ2Q5UaANuyevNvyASDAfc/1769855183735-cc0c5367-1c3d-4dcc-be16-16ccf8bc2512.jpg
+  • 697dd8f95b911d060343faa3 → https://snapmap.blob.core.windows.net/snapmap/user_38SmxMZ2Q5UaANuyevNvyASDAfc/1769855210866-d844ecd0-43e8-488d-ba53-66263e145c5a.jpg
+  • 697dd9135b911d060343faa7 → https://snapmap.blob.core.windows.net/snapmap/user_38SmxMZ2Q5UaANuyevNvyASDAfc/1769855242501-3561d27c-537b-4919-867f-ec1bdc58b1a7.jpg
+  • 697dd9335b911d060343faab → https://snapmap.blob.core.windows.net/snapmap/user_38SmxMZ2Q5UaANuyevNvyASDAfc/1769855268752-39a1c68f-e3be-4837-9bbe-42a43052998f.jpg
+- Evidence: worker log showed “created” on 697dd9335b911d060343faab.
+
+Scenario 2 (gallery, two accounts, same spot)
+- Account A: user_38SmxMZ2Q5UaANuyevNvyASDAfc uploaded 3 gallery photos (multi-upload).
+- Account B: user_384kXcTDQiqZLkGJ87Q7Lt4dkqx uploaded 3 gallery photos ~3 minutes later.
+- Expected: new event. Actual: photos attached to existing event (same location/time window).
+- EventId: 697dd933d3bd58fc7bc129de
+- Photos added:
+  • 697dda075b911d060343fab1 (3 images) → …87e0cac2-8f1d-4e30-80e9-988162eb09d0.jpg; …56d5e1bc-74d7-4a89-97b7-a442e2b54806.jpg; …3afb9f27-56b8-48c4-a925-6d4bdb6aba60.jpg
+  • 697dda485b911d060343fab8 (3 images) → …c9ec9a83-07a1-4650-90da-bfff7eea7348.jpg; …112698a2-3e5b-4f33-b841-9dfb1db887e8.jpg; …f3f89c0f-4e64-4a12-ad44-980f5e0afd47.jpg
+- Evidence: worker logs “created” already existed; these batches logged as “updated”; event photoCount increased.
+
+Scenario 2.5 (while same event active)
+- Added 1 camera + 2 gallery batches; all attached to event 697dd933d3bd58fc7bc129de.
+- Photos:
+  • 697ddaf45b911d060343fabc → https://snapmap.blob.core.windows.net/snapmap/user_384kXcTDQiqZLkGJ87Q7Lt4dkqx/1769855714283-d3060456-8e39-4727-bb46-f31e3a1a3d5b.jpg
+  • 697ddb605b911d060343fac1 (3 images) → …cf0dce49-6ad1-4fab-9a23-5158d331b903.jpg; …b68f735f-bea5-44f5-b8e4-9ca08413fd85.jpg; …70840396-c302-4955-aeaa-3e8fe066de7c.jpg
+  • 697ddb615b911d060343fac3 (2 images) → …aa217140-f9ab-4986-902f-c4967dda0865.jpg; …5989b7e1-3417-4e7d-b679-98ab95a1d5cd.jpg
+- Evidence: worker logs “updated”; list-events showed photoCount=8 for the event.
+
+Commands
+- Backfill: node backend/testing/emit-photo-events.mjs
+- List events/photos: node backend/testing/list-events.mjs
